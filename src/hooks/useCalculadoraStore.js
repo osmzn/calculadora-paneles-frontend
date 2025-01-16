@@ -1,6 +1,6 @@
 import { useDispatch, useSelector } from "react-redux"
 import { calcularPaneles } from "../store/calculadora/calculadoraSlice"
-import calculadoraApi from "../api/calculadoraApi"
+import { calculadoraApi, obtenerToken, getTokenLocalStorage} from "../api/calculadoraApi"
 
 import Swal from "sweetalert2"
 
@@ -9,8 +9,15 @@ export const useCalculadoraStore = () => {
     const dispatch = useDispatch()
     const { panel, techo, verticalFirst, horizontalFirst, maxPanel } = useSelector(state => state.calculadora)
 
+    
     const startCalcularPaneles = async (panel, techo) => {
-
+        
+        let token = getTokenLocalStorage();
+    
+        if (!token) {
+            token = await obtenerToken()
+        }
+        
         try {
 
             const response = await calculadoraApi.post('/events/calcularPaneles', {
@@ -18,6 +25,10 @@ export const useCalculadoraStore = () => {
                 b: panel.ancho,
                 x: techo.ancho,
                 y: techo.alto
+            },{
+                headers: {
+                    'x-token': token 
+                }
             });
 
             const { verticalFirst, maxPanel } = response.data
@@ -47,6 +58,9 @@ export const useCalculadoraStore = () => {
                 Swal.fire('Error de red', 'No se pudo establecer conexión con el servidor.', 'error');
             } else {
                 const errorMessage = error.response.data?.msg || Object.values(error.response.data?.errors ?? {})[0]?.msg || 'Ocurrió un error desconocido.';
+                if (errorMessage == "Token no valido") {
+                    await obtenerToken()
+                }
                 Swal.fire('Error al calcular', errorMessage, 'error');
             }
 
